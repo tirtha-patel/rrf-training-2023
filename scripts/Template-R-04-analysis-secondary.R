@@ -3,7 +3,8 @@
 
 # install.packages("pacman")
 
-packages <- c("tidyr", 
+packages <- c("here", 
+              "tidyr", 
               "dplyr", 
               "ggplot2", 
               "corrplot", 
@@ -14,13 +15,13 @@ packages <- c("tidyr",
 
 pacman::p_load(packages,
                character.only = TRUE,
-               install = FALSE) # Change to TRUE to install the necessary packages
+               install = TRUE) # Change to TRUE to install the necessary packages
 
 # Set path of our data 
 
 # Set folder path to where you downloaded the data
-tidy_folder <- 
-  "YOUR/FOLDER/PATH"
+tidy_folder <- here("data") 
+tidy_output <- here("outputs")
 
 # read data 
 
@@ -38,7 +39,7 @@ state_database <- read.csv(file.path(tidy_folder,
 
 # You can use summary() function, here is another more customized option. 
 
-summary_stats <- municipality_database %>%
+summary_stats_municipality <- municipality_database %>%
   # only numeric variables 
   summarise(across(avg_d_mbps_winsorized:avg_u_mbps_change, list(mean = ~mean(.x, na.rm = TRUE), 
                                                                  sd = ~sd(.x, na.rm = TRUE), 
@@ -49,7 +50,7 @@ summary_stats <- municipality_database %>%
                values_to = "value", 
                names_sep = "_(?=[^_]+$)") %>% 
   pivot_wider(names_from = Variable) %>% 
-  rename(Mean = "mean", SD = "sd", `95% CI Lower` = "cilower", `95% CI Upper` = "ciupper")
+  rename(Mean = "mean", SD = "sd", `95% CI Lower` = "cilower", `95% CI Upper` = "ciupper") 
 
 # Task 1: Create Summary Statistics ------------------------
 
@@ -57,24 +58,70 @@ summary_stats <- municipality_database %>%
 # Note: Use dplyr functions such as summarise and across to calculate summary statistics like mean, sd, etc.
 # ....
 # Use gt package to create nice looking tables.
-# ....
+
+stargazer(municipality_database, type = "latex", title="Descriptive statistics", digits=1, out=file.path(tidy_output,"municipality_DS.tex"))
+
+summary_stats_municipality %>% 
+  gt() %>%
+  gtsave(file.path(tidy_output,"municipality_DS.html"))
+
 
 # For State
 # Note: Similarly, create summary statistics for the state database
-# ....
+
+summary_stats_state <- state_database %>%
+  # only numeric variables 
+  summarise(across(avg_d_mbps_winsorized:avg_u_mbps_change, list(mean = ~mean(.x, na.rm = TRUE), 
+                                                                 sd = ~sd(.x, na.rm = TRUE), 
+                                                                 cilower = ~quantile(.x, 0.025, na.rm = TRUE), 
+                                                                 ciupper = ~quantile(.x, 0.975, na.rm = TRUE)))) %>%
+  pivot_longer(cols = everything(),
+               names_to = c("Statistic", "Variable"),
+               values_to = "value", 
+               names_sep = "_(?=[^_]+$)") %>% 
+  pivot_wider(names_from = Variable) %>% 
+  rename(Mean = "mean", SD = "sd", `95% CI Lower` = "cilower", `95% CI Upper` = "ciupper") 
+
+stargazer(state_database, type = "latex", title="Descriptive statistics", digits=1, out=file.path(tidy_output,"state_DS.tex"))
+
+summary_stats_state %>% 
+  gt() %>%
+  gtsave(file.path(tidy_output,"state_DS.html"))
+
 
 # Task 2: Visualization of Individual Variables ------------
 
 # Histogram
 # Note: Use ggplot2 package to create histograms. Use geom_histogram() function for histograms.
-# ....
+municipality_database %>% ggplot(aes(x = avg_u_mbps_winsorized)) +
+  geom_histogram()
+
+ggsave(file.path(tidy_output,"avg_u_mbps_histogram.png"))
+
+municipality_database %>% ggplot(aes(x = avg_d_mbps_winsorized)) +
+  geom_histogram()
+
+ggsave(file.path(tidy_output,"avg_d_mbps_histogram.png"))
 
 # Boxplot
 # Note: Use geom_boxplot() function to create box plots.
-# ....
+municipality_database %>% ggplot(aes(y = avg_u_mbps_winsorized)) +
+  geom_boxplot() +
+  ylim(c(0,30)) +
+  facet_wrap(~trimester)
+
+ggsave(file.path(tidy_output,"avg_u_mbps_boxplot.png"))
+
+municipality_database %>% ggplot(aes(y = avg_d_mbps_winsorized)) +
+  geom_boxplot() +
+  ylim(c(0,30)) +
+  facet_wrap(~trimester)
+
+ggsave(file.path(tidy_output,"avg_d_mbps_boxplot.png"))
+
 
 # Save the plots using ggsave()
-# ....
+
 
 # Task 3: Regression Analysis ------------------------
 

@@ -1,10 +1,9 @@
 # Tidying data - R - secondary sources - template
 # Load necessary packages --------------------------
 
-# install.packages("pacman")
-
 packages <- c("tidyr", 
-              "dplyr")
+              "dplyr",
+              "here")
 
 pacman::p_load(packages,
                character.only = TRUE,
@@ -13,8 +12,7 @@ pacman::p_load(packages,
 # Set path of our data 
 
 # Set folder path to where you downloaded the data
-tidy_folder <- 
-  "YOUR/FOLDER/PATH"
+tidy_folder <- here("data")
 
 # Exercise 1 ---------------------------------------
 
@@ -22,12 +20,29 @@ tidy_folder <-
 
 connectivity_wide <- read.csv(file.path(tidy_folder, 
                                         "colombia_connectivity_wide.csv")) 
+                                        
+## Checking the number of unique values for the following variables: tiles and AMD2
 
-# Step 2: Remove duplicates 
+length(unique(connectivity_wide$quadkey))
+length(unique(connectivity_wide$ADM2_PC))
+length(unique(connectivity_wide$ADM2_ES)) 
+
+# Step 2: Remove duplicates
+
+connectivity_wide <- connectivity_wide %>% 
+  distinct()
 
 # Step 3: Reshape data
 
+connectivity_long <- connectivity_wide %>% 
+  pivot_longer(cols = ends_with(c("_01", "_04")),
+               names_to = c(".value", "trimester"),
+               names_pattern = "(.+)_(\\d+)",
+               values_to = ".value")
+
 # Step 4: Verify your dataset has the desired structure
+
+colnames(connectivity_long)
 
 # Exercise 2 ----------------------------
 
@@ -36,16 +51,41 @@ infrastructure_long <- read.csv(file.path(tidy_folder,
                                           "colombia_infrastructure_lng.csv"))
 
 # Step 2: Explore the data 
+unique(infrastructure_long$amenities)
 
-# Step 3: Reshape the data. 
+# Step 3: Reshape the data
+infrastructure_wide <- infrastructure_long %>% 
+  pivot_wider(names_from = "amenities",
+              values_from = "value")
 
 # Challenges  --------------------------
 
 ##### Part 1: municipality with more download speed
+unique(connectivity_long$avg_d_kbps)
 
-# rest of the exercise 
+connectivity_wide$ADM2_ES[which.max(connectivity_wide$avg_d_kbps_04)]
+
+highest_download_speed_wide <- connectivity_wide %>% 
+  group_by(ADM2_PC) %>% 
+  mutate(mean_avg_d_kbps_04 = mean(avg_d_kbps_04, na.rm = TRUE)) %>% 
+  arrange(desc(mean_avg_d_kbps_04))
+
+highest_download_speed_long <- connectivity_long %>% 
+  group_by(ADM2_PC, trimester) %>% 
+  mutate(mean_avg_d_kbps = mean(avg_d_kbps, na.rm = TRUE)) %>% 
+  filter(trimester == "04") %>% 
+  arrange(desc(mean_avg_d_kbps))
+
 
 ##### Part 2: municipality with more educational institutions 
 
-# rest of the exercise 
+highest_amenities_wide <- infrastructure_wide %>% 
+  mutate(edu_amenities = college + university + school) %>% 
+  arrange(desc(edu_amenities))
+
+highest_amenities_long <- infrastructure_long %>% 
+  filter(amenities == "college"| amenities =="school"| amenities =="university") %>% 
+  group_by(ADM2_PC) %>% 
+  mutate(edu_amenities = sum(value, na.rm = TRUE)) %>% 
+  arrange(desc(edu_amenities))
 
